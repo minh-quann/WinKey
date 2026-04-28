@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6C63FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="key_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.95" />
+      <stop offset="100%" style="stop-color:#e0e7ff;stop-opacity:0.9" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+    <filter id="inner_glow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur"/>
+      <feOffset in="blur" dx="0" dy="1" result="offsetBlur"/>
+      <feFlood flood-color="#ffffff" flood-opacity="0.3" result="color"/>
+      <feComposite in="color" in2="offsetBlur" operator="in" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect x="4" y="4" width="120" height="120" rx="28" ry="28" fill="url(#bg)" filter="url(#shadow)"/>
+
+  <!-- Subtle shine overlay -->
+  <rect x="4" y="4" width="120" height="60" rx="28" ry="28" fill="url(#bg)" opacity="0.15" style="fill:white"/>
+
+  <!-- Keyboard key shape -->
+  <rect x="28" y="28" width="72" height="72" rx="12" ry="12" fill="url(#key_grad)" filter="url(#inner_glow)" opacity="0.95"/>
+
+  <!-- Key border -->
+  <rect x="28" y="28" width="72" height="72" rx="12" ry="12" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- Windows/Super logo - 4 squares -->
+  <g transform="translate(64, 64)" fill="#6C63FF">
+    <!-- Top-left -->
+    <rect x="-16" y="-16" width="14" height="14" rx="2"/>
+    <!-- Top-right -->
+    <rect x="2" y="-16" width="14" height="14" rx="2"/>
+    <!-- Bottom-left -->
+    <rect x="-16" y="2" width="14" height="14" rx="2"/>
+    <!-- Bottom-right -->
+    <rect x="2" y="2" width="14" height="14" rx="2"/>
+  </g>
+
+  <!-- Small "EN" badge -->
+  <circle cx="100" cy="100" r="16" fill="#10B981"/>
+  <text x="100" y="106" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="14" fill="white">EN</text>
+</svg>

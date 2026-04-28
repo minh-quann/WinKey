@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=WinKey
+GenericName=Input Source Switcher
+Comment=Hold Super key to temporarily switch to English input
+Exec=python3 /home/quan/Documents/WinKey/winkey.py
+Icon=/home/quan/Documents/WinKey/data/icons/winkey.svg
+Terminal=false
+Categories=Utility;Settings;
+Keywords=keyboard;input;language;switch;super;
+StartupNotify=true
