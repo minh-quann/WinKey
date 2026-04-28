@@ -15,6 +15,10 @@ from src.input_source import get_current_index, set_current_index, get_all_sourc
 from src.settings import WinKeyConfig, load_config, save_config
 from src.i18n import get_translations, Translations, LANGUAGE_DISPLAY_NAMES
 
+from src.ui.cards.status_card import build_status_card
+from src.ui.cards.sources_card import build_sources_card
+from src.ui.cards.settings_card import build_settings_card
+
 
 # Path to icons
 ICON_DIR = Path(__file__).parent.parent / "data" / "icons"
@@ -95,185 +99,19 @@ class WinKeyWindow(Adw.ApplicationWindow):
         )
 
         # ── Status Card ──────────────────────────────────────────────
-        self._build_status_card(main_box)
+        main_box.append(build_status_card(self))
 
         # ── Input Sources Card ───────────────────────────────────────
-        self._build_sources_card(main_box)
+        main_box.append(build_sources_card(self))
 
         # ── Settings Card ────────────────────────────────────────────
-        self._build_settings_card(main_box)
+        main_box.append(build_settings_card(self))
 
         clamp.set_child(main_box)
         content.append(clamp)
         self.set_content(content)
 
-    def _build_status_card(self, parent: Gtk.Box) -> None:
-        """Build the status/control card."""
-        t = self.t
-        group = Adw.PreferencesGroup(title=t["status_title"])
-
-        # Status row with indicator
-        self.status_row = Adw.ActionRow(title=t["service"])
-        self.status_icon = Gtk.Image.new_from_icon_name("media-record-symbolic")
-        self.status_row.add_prefix(self.status_icon)
-
-        # Power toggle switch
-        self.power_switch = Gtk.Switch(valign=Gtk.Align.CENTER)
-        self.power_switch.set_active(self.config["enabled"])
-        self.power_switch.connect("notify::active", self._on_power_toggled)
-        self.status_row.add_suffix(self.power_switch)
-        self.status_row.set_activatable_widget(self.power_switch)
-        group.add(self.status_row)
-
-        # Update status display
-        self._update_status_ui()
-
-        # Switch counter row
-        self.counter_row = Adw.ActionRow(
-            title=t["times_switched"],
-            subtitle=str(self._switch_count),
-        )
-        counter_icon = Gtk.Image.new_from_icon_name("view-refresh-symbolic")
-        self.counter_row.add_prefix(counter_icon)
-
-        reset_btn = Gtk.Button(
-            icon_name="edit-clear-symbolic",
-            valign=Gtk.Align.CENTER,
-            tooltip_text=t["reset_counter"],
-        )
-        reset_btn.add_css_class("flat")
-        reset_btn.connect("clicked", self._on_reset_counter)
-        self.counter_row.add_suffix(reset_btn)
-        group.add(self.counter_row)
-
-        # Current input source indicator
-        self.current_source_row = Adw.ActionRow(
-            title=t["current_input"],
-            subtitle=t["detecting"],
-        )
-        current_icon = Gtk.Image.new_from_icon_name("input-keyboard-symbolic")
-        self.current_source_row.add_prefix(current_icon)
-        group.add(self.current_source_row)
-
-        parent.append(group)
-
-        # Fetch current source display
-        GLib.timeout_add(500, self._update_current_source_display)
-
-    def _build_sources_card(self, parent: Gtk.Box) -> None:
-        """Build the input sources configuration card."""
-        t = self.t
-        group = Adw.PreferencesGroup(
-            title=t["target_source_title"],
-            description=t["target_source_desc"],
-        )
-
-        self.sources = get_all_sources()
-        self._first_radio: Gtk.CheckButton | None = None
-
-        if self.sources:
-            for source in self.sources:
-                row = Adw.ActionRow(
-                    title=source.display_name,
-                    subtitle=f"{source.source_type}: {source.source_id}",
-                )
-
-                check = Gtk.CheckButton(valign=Gtk.Align.CENTER)
-                if source.index == self.config["english_index"]:
-                    check.set_active(True)
-
-                if self._first_radio is None:
-                    self._first_radio = check
-                else:
-                    check.set_group(self._first_radio)
-
-                check.connect("toggled", self._on_source_selected, source.index)
-                row.add_prefix(check)
-                row.set_activatable_widget(check)
-
-                type_label = Gtk.Label(
-                    label=source.source_type.upper(),
-                    valign=Gtk.Align.CENTER,
-                )
-                type_label.add_css_class("dim-label")
-                type_label.add_css_class("caption")
-                row.add_suffix(type_label)
-
-                group.add(row)
-        else:
-            row = Adw.ActionRow(
-                title=t["no_sources"],
-                subtitle=t["no_sources_hint"],
-            )
-            row.add_prefix(Gtk.Image.new_from_icon_name("dialog-warning-symbolic"))
-            group.add(row)
-
-        parent.append(group)
-
-    def _build_settings_card(self, parent: Gtk.Box) -> None:
-        """Build the settings card."""
-        t = self.t
-        group = Adw.PreferencesGroup(title=t["options_title"])
-
-        # Language selector row
-        lang_row = Adw.ActionRow(
-            title=t["language"],
-            subtitle=t["language_desc"],
-        )
-        lang_icon = Gtk.Image.new_from_icon_name("preferences-desktop-locale-symbolic")
-        lang_row.add_prefix(lang_icon)
-
-        # Language dropdown
-        lang_list = Gtk.StringList()
-        lang_codes: list[str] = []
-        active_idx = 0
-        for i, (code, name) in enumerate(LANGUAGE_DISPLAY_NAMES.items()):
-            lang_list.append(name)
-            lang_codes.append(code)
-            if code == self.config["language"]:
-                active_idx = i
-
-        self._lang_codes = lang_codes
-        lang_dropdown = Gtk.DropDown(
-            model=lang_list,
-            valign=Gtk.Align.CENTER,
-        )
-        lang_dropdown.set_selected(active_idx)
-        lang_dropdown.connect("notify::selected", self._on_language_changed)
-        lang_row.add_suffix(lang_dropdown)
-        group.add(lang_row)
-
-        # Auto-start row
-        autostart_row = Adw.ActionRow(
-            title=t["start_on_login"],
-            subtitle=t["start_on_login_desc"],
-        )
-        autostart_icon = Gtk.Image.new_from_icon_name("system-run-symbolic")
-        autostart_row.add_prefix(autostart_icon)
-
-        self.autostart_switch = Gtk.Switch(valign=Gtk.Align.CENTER)
-        self.autostart_switch.set_active(self.config["auto_start"])
-        self.autostart_switch.connect("notify::active", self._on_autostart_toggled)
-        autostart_row.add_suffix(self.autostart_switch)
-        autostart_row.set_activatable_widget(self.autostart_switch)
-        group.add(autostart_row)
-
-        # Notifications row
-        notif_row = Adw.ActionRow(
-            title=t["show_notifications"],
-            subtitle=t["show_notifications_desc"],
-        )
-        notif_icon = Gtk.Image.new_from_icon_name("preferences-system-notifications-symbolic")
-        notif_row.add_prefix(notif_icon)
-
-        self.notif_switch = Gtk.Switch(valign=Gtk.Align.CENTER)
-        self.notif_switch.set_active(self.config["show_notifications"])
-        self.notif_switch.connect("notify::active", self._on_notif_toggled)
-        notif_row.add_suffix(self.notif_switch)
-        notif_row.set_activatable_widget(self.notif_switch)
-        group.add(notif_row)
-
-        parent.append(group)
+    # (Card build methods removed and extracted to src/ui/cards/)
 
     # ── Daemon Callbacks (called from background thread) ─────────────
 

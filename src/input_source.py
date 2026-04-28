@@ -22,11 +22,25 @@ class InputSource:
 def get_current_index() -> int:
     """Get the current input source index."""
     try:
+        # 1. Try to get active engine from ibus first (works with per-window input source)
+        result = subprocess.run(["ibus", "engine"], capture_output=True, text=True, timeout=2)
+        if result.returncode == 0:
+            active_engine = result.stdout.strip()
+            sources = get_all_sources()
+            for src in sources:
+                if src.source_type == "ibus" and src.source_id == active_engine:
+                    return src.index
+                if src.source_type == "xkb":
+                    layout = src.source_id.split('+')[0]
+                    # xkb engine names usually look like xkb:us::eng or xkb:us:alt-intl:eng
+                    if active_engine.startswith(f"xkb:{layout}:"):
+                        return src.index
+
+        # 2. Fallback to gsettings
         result = subprocess.run(
             ["gsettings", "get", GSETTINGS_SCHEMA, "current"],
             capture_output=True, text=True, timeout=2
         )
-        # Output: "uint32 0"
         return int(result.stdout.strip().split()[-1])
     except Exception:
         return 0
@@ -35,6 +49,26 @@ def get_current_index() -> int:
 def set_current_index(index: int) -> None:
     """Set the current input source by index."""
     try:
+        # 1. Set via ibus engine directly to affect the current active window
+        sources = get_all_sources()
+        for src in sources:
+            if src.index == index:
+                engine = None
+                if src.source_type == "ibus":
+                    engine = src.source_id
+                elif src.source_type == "xkb":
+                    layout = src.source_id
+                    if "+" in layout:
+                        lay, var = layout.split("+", 1)
+                        engine = f"xkb:{lay}:{var}:eng"
+                    else:
+                        engine = f"xkb:{layout}::eng"
+                
+                if engine:
+                    subprocess.run(["ibus", "engine", engine], capture_output=True, timeout=2)
+                break
+
+        # 2. Also set via gsettings as fallback (affects new windows)
         subprocess.run(
             ["gsettings", "set", GSETTINGS_SCHEMA, "current", str(index)],
             capture_output=True, timeout=2

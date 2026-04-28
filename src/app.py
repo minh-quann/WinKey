@@ -9,7 +9,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio
 from pathlib import Path
 
-from src.window import WinKeyWindow
+from src.ui.window import WinKeyWindow
 
 
 # Icon directory
