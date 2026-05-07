@@ -73,4 +73,19 @@ def build_settings_card(window) -> Adw.PreferencesGroup:
     notif_row.set_activatable_widget(window.notif_switch)
     group.add(notif_row)
 
+    # Tray icon row
+    tray_row = Adw.ActionRow(
+        title=t.get("show_tray_icon", "Show tray icon"),
+        subtitle=t.get("show_tray_icon_desc", "Show an icon in the system tray"),
+    )
+    tray_icon = Gtk.Image.new_from_icon_name("view-pin-symbolic")
+    tray_row.add_prefix(tray_icon)
+
+    window.tray_switch = Gtk.Switch(valign=Gtk.Align.CENTER)
+    window.tray_switch.set_active(window.config.get("show_tray_icon", True))
+    window.tray_switch.connect("notify::active", window._on_tray_toggled)
+    tray_row.add_suffix(window.tray_switch)
+    tray_row.set_activatable_widget(window.tray_switch)
+    group.add(tray_row)
+
     return group

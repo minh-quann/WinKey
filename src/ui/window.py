@@ -241,6 +241,15 @@ class WinKeyWindow(Adw.ApplicationWindow):
         self.config["show_notifications"] = switch.get_active()
         save_config(self.config)
 
+    def _on_tray_toggled(self, switch: Gtk.Switch, _pspec: object) -> None:
+        """Handle tray icon toggle."""
+        active = switch.get_active()
+        self.config["show_tray_icon"] = active
+        save_config(self.config)
+        app = self.get_application()
+        if hasattr(app, '_toggle_tray'):
+            app._toggle_tray(active)
+
     def _on_reset_counter(self, _btn: Gtk.Button) -> None:
         """Reset switch counter."""
         self._switch_count = 0

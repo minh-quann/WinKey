@@ -273,6 +273,21 @@ class WinKeyWindow(Adw.ApplicationWindow):
         notif_row.set_activatable_widget(self.notif_switch)
         group.add(notif_row)
 
+        # Tray icon row
+        tray_row = Adw.ActionRow(
+            title=t.get("show_tray_icon", "Show tray icon"),
+            subtitle=t.get("show_tray_icon_desc", "Show an icon in the system tray"),
+        )
+        tray_icon = Gtk.Image.new_from_icon_name("view-pin-symbolic")
+        tray_row.add_prefix(tray_icon)
+
+        self.tray_switch = Gtk.Switch(valign=Gtk.Align.CENTER)
+        self.tray_switch.set_active(self.config.get("show_tray_icon", True))
+        self.tray_switch.connect("notify::active", self._on_tray_toggled)
+        tray_row.add_suffix(self.tray_switch)
+        tray_row.set_activatable_widget(self.tray_switch)
+        group.add(tray_row)
+
         parent.append(group)
 
     # ── Daemon Callbacks (called from background thread) ─────────────
@@ -403,6 +418,15 @@ class WinKeyWindow(Adw.ApplicationWindow):
         self.config["show_notifications"] = switch.get_active()
         save_config(self.config)
 
+    def _on_tray_toggled(self, switch: Gtk.Switch, _pspec: object) -> None:
+        """Handle tray icon toggle."""
+        active = switch.get_active()
+        self.config["show_tray_icon"] = active
+        save_config(self.config)
+        app = self.get_application()
+        if hasattr(app, '_toggle_tray'):
+            app._toggle_tray(active)
+
     def _on_reset_counter(self, _btn: Gtk.Button) -> None:
         """Reset switch counter."""
         self._switch_count = 0
@@ -437,7 +461,7 @@ class WinKeyWindow(Adw.ApplicationWindow):
 Type=Application
 Name=WinKey
 Comment=Super Key Input Source Switcher
-Exec=python3 {app_path}
+Exec=python3 {app_path} --background
 Icon={icon_path}
 Terminal=false
 Categories=Utility;
@@ -449,13 +473,17 @@ X-GNOME-Autostart-enabled=true
                 desktop_file.unlink()
 
     def _on_quit(self, _btn: Gtk.Button) -> None:
-        """Completely quit the application."""
-        if self._saved_source is not None:
-            set_current_index(self._saved_source)
-        self.daemon.stop()
-        self.get_application().quit()
+        """Completely quit the application including tray."""
+        app = self.get_application()
+        if hasattr(app, '_do_full_quit'):
+            app._do_full_quit()
+        else:
+            if self._saved_source is not None:
+                set_current_index(self._saved_source)
+            self.daemon.stop()
+            app.quit()
 
     def do_close_request(self) -> bool:
-        """Handle window close - hide to background instead of quitting."""
+        """Handle window close - hide to background, daemon keeps running."""
         self.set_visible(False)
         return True

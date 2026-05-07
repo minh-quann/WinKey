@@ -15,6 +15,7 @@ class WinKeyConfig(TypedDict):
     auto_start: bool
     show_notifications: bool
     language: str
+    show_tray_icon: bool
 
 
 DEFAULT_CONFIG: WinKeyConfig = {
@@ -23,6 +24,7 @@ DEFAULT_CONFIG: WinKeyConfig = {
     "auto_start": False,
     "show_notifications": True,
     "language": "vi",
+    "show_tray_icon": True,
 }
 
 CONFIG_DIR = Path.home() / ".config" / "winkey"

@@ -37,6 +37,8 @@ class Translations(TypedDict):
     show_notifications_desc: str
     language: str
     language_desc: str
+    show_tray_icon: str
+    show_tray_icon_desc: str
 
     # About
     about_comments: str
@@ -74,6 +76,8 @@ LANG_EN: Translations = {
     "show_notifications_desc": "Notify when input source changes",
     "language": "Language",
     "language_desc": "Application display language",
+    "show_tray_icon": "Show tray icon",
+    "show_tray_icon_desc": "Show an icon in the system tray",
 
     "about_comments": "Hold Super key to temporarily switch to English input.\nRelease to go back to your previous input source.",
 
@@ -110,6 +114,8 @@ LANG_VI: Translations = {
     "show_notifications_desc": "Thông báo khi nguồn nhập thay đổi",
     "language": "Ngôn ngữ",
     "language_desc": "Ngôn ngữ hiển thị của ứng dụng",
+    "show_tray_icon": "Hiện icon khay hệ thống",
+    "show_tray_icon_desc": "Hiển thị biểu tượng trên thanh hệ thống",
 
     "about_comments": "Giữ phím Super để tạm thời chuyển sang nhập tiếng Anh.\nNhả ra để quay về nguồn nhập trước đó.",
 

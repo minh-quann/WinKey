@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.winkey" path="/org/gnome/shell/extensions/winkey/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Enable Extension</summary>
+      <description>Toggle the input switcher functionality</description>
+    </key>
+    <key name="english-index" type="i">
+      <default>1</default>
+      <summary>Target English Input Source Index</summary>
+      <description>The index of the target English input source (0, 1, 2...)</description>
+    </key>
+  </schema>
+</schemalist>
