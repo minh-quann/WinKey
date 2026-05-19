@@ -45,6 +45,8 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     mkdir -p "$(dirname "$AUTOSTART_FILE")"
     cp "$DESKTOP_FILE" "$AUTOSTART_FILE"
+    # Override Exec to start in background mode (no GUI window)
+    sed -i "s|^Exec=.*|Exec=python3 ${SCRIPT_DIR}/winkey.py --background|" "$AUTOSTART_FILE"
     echo "X-GNOME-Autostart-enabled=true" >> "$AUTOSTART_FILE"
     echo "✓ Autostart enabled"
 fi

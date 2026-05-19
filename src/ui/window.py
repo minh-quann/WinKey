@@ -284,7 +284,7 @@ class WinKeyWindow(Adw.ApplicationWindow):
 Type=Application
 Name=WinKey
 Comment=Super Key Input Source Switcher
-Exec=python3 {app_path}
+Exec=python3 {app_path} --background
 Icon={icon_path}
 Terminal=false
 Categories=Utility;
