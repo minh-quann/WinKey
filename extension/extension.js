@@ -5,15 +5,17 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {getInputSourceManager} from 'resource:///org/gnome/shell/ui/status/keyboard.js';
 
 /**
- * WinKey Input Switcher Extension v7
+ * WinKey Input Switcher Extension v10
  *
  * Combines multiple switching methods for maximum reliability:
  * 1. InputSourceManager.activate() - GNOME internal API
  * 2. GSettings current - affects GNOME's source tracking
  * 3. Gio.Subprocess ibus engine - direct IBus engine switch
  *
+ * Terminal detection:
+ * - Native terminals: detected by wm_class (Ptyxis, Kitty, etc.)
+ *
  * Uses Overview showing/hidden signals to detect Super key.
- * Tracks input source BEFORE Overview opens to know what to restore.
  */
 export default class WinKeyExtension extends Extension {
     constructor(metadata) {
@@ -27,6 +29,11 @@ export default class WinKeyExtension extends Extension {
         this._sourceBeforeOverview = -1;
         this._engineMap = {};
         this._restoreTimeoutId = 0;
+        
+        // Terminal auto-switch
+        this._focusWindowId = 0;
+        this._inTerminal = false;
+        this._sourceBeforeTerminal = -1;
     }
 
     /**
@@ -107,6 +114,7 @@ export default class WinKeyExtension extends Extension {
      */
     _onSourceChanged() {
         if (Main.overview.visible) return;
+        if (this._inTerminal) return;
 
         try {
             const ism = getInputSourceManager();
@@ -171,8 +179,85 @@ export default class WinKeyExtension extends Extension {
         this._sourceBeforeOverview = -1;
     }
 
+    // ─── Terminal Mode Management ─────────────────────────────────────
+
+    /**
+     * Enter terminal mode - switch to English
+     * @param {string} source - 'wm_class' for native terminals
+     */
+    _enterTerminalMode(source) {
+        if (this._inTerminal) return;
+        console.log(`[WinKey] Terminal detected (${source}), switching to English`);
+        this._sourceBeforeTerminal = this._lastSourceIndex;
+        this._inTerminal = true;
+
+        const targetIndex = this._extSettings.get_int('english-index');
+        if (this._sourceBeforeTerminal !== targetIndex && this._sourceBeforeTerminal !== -1) {
+            this._switchTo(targetIndex);
+        }
+    }
+
+    /**
+     * Leave terminal mode - restore previous input source
+     */
+    _leaveTerminalMode(reason) {
+        if (!this._inTerminal) return;
+        console.log(`[WinKey] Terminal left (${reason}), restoring previous source`);
+        this._inTerminal = false;
+
+        const restoreIndex = this._sourceBeforeTerminal;
+        const targetIndex = this._extSettings.get_int('english-index');
+
+        if (restoreIndex !== -1 && restoreIndex !== targetIndex) {
+            const delays = [0, 50, 150];
+            for (const delay of delays) {
+                if (delay === 0) {
+                    this._switchTo(restoreIndex);
+                } else {
+                    GLib.timeout_add(GLib.PRIORITY_HIGH, delay, () => {
+                        this._switchTo(restoreIndex);
+                        this._lastSourceIndex = restoreIndex;
+                        return GLib.SOURCE_REMOVE;
+                    });
+                }
+            }
+        }
+        this._sourceBeforeTerminal = -1;
+    }
+
+    // ─── Window Focus Tracking ────────────────────────────────────────
+
+    /**
+     * Handle active window changes to detect terminals
+     */
+    _onFocusWindowChanged() {
+        if (!this._extSettings.get_boolean('enabled')) return;
+
+        const focusWindow = global.display.focus_window;
+        if (!focusWindow) return;
+
+        const wmClass = focusWindow.get_wm_class() ? focusWindow.get_wm_class().toLowerCase() : '';
+        const terminalClasses = [
+            'gnome-terminal', 'kitty', 'alacritty', 'wezterm', 
+            'konsole', 'tilix', 'terminator', 'xterm', 
+            'blackbox', 'ptyxis', 'guake', 'yakuake'
+        ];
+
+        const isTerminal = terminalClasses.some(c => wmClass.includes(c));
+
+        if (isTerminal) {
+            // Native terminal app - always switch to English
+            this._enterTerminalMode(wmClass);
+        } else {
+            // Non-terminal app - leave terminal mode
+            this._leaveTerminalMode(wmClass);
+        }
+    }
+
+    // ─── Enable / Disable ─────────────────────────────────────────────
+
     enable() {
-        console.log('[WinKey] Enabling extension v7 (triple-method)');
+        console.log('[WinKey] Enabling extension v10 (simplified, system terminal only)');
         this._extSettings = this.getSettings();
         this._inputSettings = new Gio.Settings({
             schema_id: 'org.gnome.desktop.input-sources',
@@ -212,6 +297,12 @@ export default class WinKeyExtension extends Extension {
             'hidden', this._onOverviewHidden.bind(this)
         );
 
+        // Terminal focus tracking
+        this._focusWindowId = global.display.connect(
+            'notify::focus-window', 
+            this._onFocusWindowChanged.bind(this)
+        );
+
         console.log('[WinKey] Extension enabled');
     }
 
@@ -230,6 +321,10 @@ export default class WinKeyExtension extends Extension {
         if (this._overviewHiddenId > 0) {
             Main.overview.disconnect(this._overviewHiddenId);
             this._overviewHiddenId = 0;
+        }
+        if (this._focusWindowId > 0) {
+            global.display.disconnect(this._focusWindowId);
+            this._focusWindowId = 0;
         }
 
         try {

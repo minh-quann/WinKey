@@ -41,5 +41,13 @@ export default class WinKeyPreferences extends ExtensionPreferences {
         });
         group.add(indexRow);
         settings.bind('english-index', indexRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+
+        // Version Info Row
+        const versionVal = this.metadata.version ? this.metadata.version.toString() : '10';
+        const versionRow = new Adw.ActionRow({
+            title: _('Extension Version'),
+            subtitle: `v${versionVal}`,
+        });
+        group.add(versionRow);
     }
 }
