@@ -1,0 +1,57 @@
+{
+  "files.autoSave": "afterDelay",
+  "workbench.colorTheme": "Andromeda Night Operator",
+  "workbench.iconTheme": "material-icon-theme",
+  "avdmanager.sdkPath": "/home/quan/Android/Sdk",
+  "kotlin.languageServer.enabled": false,
+  "kotlin.debugAdapter.enabled": false,
+  "terminal.integrated.profiles.linux": {
+    "bash": {
+      "path": "bash",
+      "icon": "terminal-bash",
+    },
+    "zsh": {
+      "path": "/usr/bin/zsh",
+    },
+    "fish": {
+      "path": "fish",
+    },
+    "tmux": {
+      "path": "tmux",
+      "icon": "terminal-tmux",
+    },
+    "pwsh": {
+      "path": "pwsh",
+      "icon": "terminal-powershell",
+    },
+    "zsh (2)": {
+      "path": "/bin/zsh",
+    },
+  },
+  "terminal.integrated.defaultProfile.linux": "zsh (2)",
+  "extensions.ignoreRecommendations": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "explorer.confirmDelete": false,
+  "javascript.updateImportsOnFileMove.enabled": "always",
+  "git.confirmSync": false,
+  "python.languageServer": "Default",
+  "python.defaultInterpreterPath": "/usr/bin/python3",
+  "terminal.integrated.enableImages": true,
+  "git.autofetch": true,
+  "explorer.compactFolders": false,
+  "explorer.confirmPasteNative": false,
+  "explorer.confirmDragAndDrop": false,
+  "editor.smoothScrolling": true,
+  "workbench.list.smoothScrolling": true,
+  "terminal.integrated.smoothScrolling": true,
+  "workbench.reduceMotion": "on",
+  "editor.cursorSmoothCaretAnimation": "on",
+  "editor.cursorBlinking": "smooth",
+  "dart.flutterSdkPaths": [
+    "/home/quan/flutter"
+  ],
+  "dart.flutterHotReloadOnSave": "all",
+  "dart.debugExternalPackageLibraries": false,
+  "dart.debugSdkLibraries": false,
+  "window.title": "${rootName}${separator}${appName}${separator}${focusedView}"
+}
