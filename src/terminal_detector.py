@@ -33,7 +33,7 @@ TERMINAL_WM_CLASSES: list[str] = [
 # Apps that may contain embedded terminal panels
 TERMINAL_CAPABLE_APPS: list[str] = [
     "code", "code-oss", "vscodium", "cursor",
-    "antigravity-ide", "antigravity",
+    "antigravity-ide",
     "jetbrains", "idea", "pycharm", "webstorm",
     "clion", "goland", "phpstorm", "rubymine",
     "rider", "datagrip", "android-studio",
