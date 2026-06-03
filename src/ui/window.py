@@ -14,6 +14,7 @@ from src.daemon import KeyDaemon
 from src.input_source import get_current_index, set_current_index, get_all_sources, InputSource
 from src.settings import WinKeyConfig, load_config, save_config
 from src.i18n import get_translations, Translations, LANGUAGE_DISPLAY_NAMES
+from src.terminal_detector import TerminalDetector
 
 from src.ui.cards.status_card import build_status_card
 from src.ui.cards.sources_card import build_sources_card
@@ -41,6 +42,9 @@ class WinKeyWindow(Adw.ApplicationWindow):
         # Create daemon with self as callback handler
         self.daemon = KeyDaemon(self)
 
+        # Create terminal detector for auto-switching input in terminals
+        self.terminal_detector = TerminalDetector(self.config["english_index"])
+
         # Build UI
         self._build_ui()
 
@@ -53,6 +57,9 @@ class WinKeyWindow(Adw.ApplicationWindow):
         if self.config["enabled"] and not self.daemon.is_running:
             self.daemon.start()
             self._update_status_ui()
+        # Start terminal detector if enabled
+        if self.config.get("auto_switch_terminal", True):
+            self.terminal_detector.start()
         return False
 
     def _rebuild_ui(self) -> None:
@@ -135,6 +142,10 @@ class WinKeyWindow(Adw.ApplicationWindow):
 
     def _handle_super_pressed(self) -> None:
         """Handle Super key press on UI thread."""
+        # Skip if terminal detector already switched to English
+        if self.terminal_detector.in_terminal:
+            return
+
         current = get_current_index()
         target = self.config["english_index"]
 
@@ -150,6 +161,10 @@ class WinKeyWindow(Adw.ApplicationWindow):
 
     def _handle_super_released(self) -> None:
         """Handle Super key release on UI thread."""
+        # Skip if terminal detector is managing the input source
+        if self.terminal_detector.in_terminal:
+            return
+
         if self._saved_source is not None:
             set_current_index(self._saved_source)
             self._saved_source = None
@@ -205,11 +220,15 @@ class WinKeyWindow(Adw.ApplicationWindow):
                 switch.set_active(False)
                 self.config["enabled"] = False
                 save_config(self.config)
+            # Start terminal detector if enabled
+            if self.config.get("auto_switch_terminal", True):
+                self.terminal_detector.start()
         else:
             if self._saved_source is not None:
                 set_current_index(self._saved_source)
                 self._saved_source = None
             self.daemon.stop()
+            self.terminal_detector.stop()
 
         self._update_status_ui()
 
@@ -218,6 +237,8 @@ class WinKeyWindow(Adw.ApplicationWindow):
         if check.get_active():
             self.config["english_index"] = index
             save_config(self.config)
+            # Update terminal detector with new English index
+            self.terminal_detector.update_english_index(index)
 
     def _on_language_changed(self, dropdown: Gtk.DropDown, _pspec: object) -> None:
         """Handle language dropdown change."""
@@ -249,6 +270,16 @@ class WinKeyWindow(Adw.ApplicationWindow):
         app = self.get_application()
         if hasattr(app, '_toggle_tray'):
             app._toggle_tray(active)
+
+    def _on_terminal_toggled(self, switch: Gtk.Switch, _pspec: object) -> None:
+        """Handle terminal auto-switch toggle."""
+        active = switch.get_active()
+        self.config["auto_switch_terminal"] = active
+        save_config(self.config)
+        if active:
+            self.terminal_detector.start()
+        else:
+            self.terminal_detector.stop()
 
     def _on_reset_counter(self, _btn: Gtk.Button) -> None:
         """Reset switch counter."""
@@ -299,6 +330,7 @@ X-GNOME-Autostart-enabled=true
         """Completely quit the application."""
         if self._saved_source is not None:
             set_current_index(self._saved_source)
+        self.terminal_detector.stop()
         self.daemon.stop()
         self.get_application().quit()
 

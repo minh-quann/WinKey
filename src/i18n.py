@@ -39,6 +39,8 @@ class Translations(TypedDict):
     language_desc: str
     show_tray_icon: str
     show_tray_icon_desc: str
+    auto_switch_terminal: str
+    auto_switch_terminal_desc: str
 
     # About
     about_comments: str
@@ -78,6 +80,8 @@ LANG_EN: Translations = {
     "language_desc": "Application display language",
     "show_tray_icon": "Show tray icon",
     "show_tray_icon_desc": "Show an icon in the system tray",
+    "auto_switch_terminal": "Auto-switch in terminals",
+    "auto_switch_terminal_desc": "Automatically switch to English when a terminal is focused",
 
     "about_comments": "Hold Super key to temporarily switch to English input.\nRelease to go back to your previous input source.",
 
@@ -116,6 +120,8 @@ LANG_VI: Translations = {
     "language_desc": "Ngôn ngữ hiển thị của ứng dụng",
     "show_tray_icon": "Hiện icon khay hệ thống",
     "show_tray_icon_desc": "Hiển thị biểu tượng trên thanh hệ thống",
+    "auto_switch_terminal": "Tự động chuyển trong terminal",
+    "auto_switch_terminal_desc": "Tự động chuyển sang tiếng Anh khi đang ở cửa sổ terminal",
 
     "about_comments": "Giữ phím Super để tạm thời chuyển sang nhập tiếng Anh.\nNhả ra để quay về nguồn nhập trước đó.",
 

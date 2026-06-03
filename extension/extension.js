@@ -5,7 +5,26 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {getInputSourceManager} from 'resource:///org/gnome/shell/ui/status/keyboard.js';
 
 /**
- * WinKey Input Switcher Extension v10
+ * D-Bus interface for exposing focused window info to the WinKey GUI app.
+ * This is needed because GNOME Shell.Introspect blocks GetWindows for
+ * external processes on Wayland.
+ */
+const DBUS_IFACE = `
+<node>
+  <interface name="com.github.winkey.WindowHelper">
+    <method name="GetFocusedWindow">
+      <arg type="s" direction="out" name="wm_class"/>
+      <arg type="s" direction="out" name="title"/>
+    </method>
+    <signal name="FocusedWindowChanged">
+      <arg type="s" name="wm_class"/>
+      <arg type="s" name="title"/>
+    </signal>
+  </interface>
+</node>`;
+
+/**
+ * WinKey Input Switcher Extension v11
  *
  * Combines multiple switching methods for maximum reliability:
  * 1. InputSourceManager.activate() - GNOME internal API
@@ -14,6 +33,9 @@ import {getInputSourceManager} from 'resource:///org/gnome/shell/ui/status/keybo
  *
  * Terminal detection:
  * - Native terminals: detected by wm_class (Ptyxis, Kitty, etc.)
+ *
+ * D-Bus helper:
+ * - Exposes focused window info for the WinKey GUI app (Wayland support)
  *
  * Uses Overview showing/hidden signals to detect Super key.
  */
@@ -33,6 +55,12 @@ export default class WinKeyExtension extends Extension {
         // Terminal auto-switch
         this._focusWindowId = 0;
         this._inTerminal = false;
+
+        // D-Bus helper for GUI app
+        this._dbusImpl = null;
+        this._dbusNameId = 0;
+        this._titleChangedId = 0;
+        this._titleChangedWindow = null;
         this._sourceBeforeTerminal = -1;
     }
 
@@ -231,6 +259,35 @@ export default class WinKeyExtension extends Extension {
      * Handle active window changes to detect terminals
      */
     _onFocusWindowChanged() {
+        // Disconnect previous title tracking
+        if (this._titleChangedId > 0 && this._titleChangedWindow) {
+            try {
+                this._titleChangedWindow.disconnect(this._titleChangedId);
+            } catch (e) {
+                // window may have been destroyed
+            }
+            this._titleChangedId = 0;
+            this._titleChangedWindow = null;
+        }
+
+        // Emit D-Bus signal for the GUI app
+        this._emitFocusChanged();
+
+        // Track title changes on the new focused window
+        // (needed for detecting IDE terminal panel switches)
+        const newWin = global.display.focus_window;
+        if (newWin) {
+            try {
+                this._titleChangedWindow = newWin;
+                this._titleChangedId = newWin.connect(
+                    'notify::title',
+                    () => this._emitFocusChanged()
+                );
+            } catch (e) {
+                // ignore
+            }
+        }
+
         if (!this._extSettings.get_boolean('enabled')) return;
 
         const focusWindow = global.display.focus_window;
@@ -256,8 +313,44 @@ export default class WinKeyExtension extends Extension {
 
     // ─── Enable / Disable ─────────────────────────────────────────────
 
+    // ─── D-Bus Helper for GUI app ────────────────────────────────────
+
+    /**
+     * D-Bus method: GetFocusedWindow
+     * Called by the WinKey GUI app to get focused window info.
+     */
+    GetFocusedWindow() {
+        const win = global.display.focus_window;
+        if (!win) return ['', ''];
+        return [
+            win.get_wm_class() || '',
+            win.get_title() || '',
+        ];
+    }
+
+    /**
+     * Emit D-Bus signal when focused window changes.
+     */
+    _emitFocusChanged() {
+        if (!this._dbusImpl) return;
+        const win = global.display.focus_window;
+        if (!win) return;
+        const wmClass = win.get_wm_class() || '';
+        const title = win.get_title() || '';
+        try {
+            this._dbusImpl.emit_signal(
+                'FocusedWindowChanged',
+                new GLib.Variant('(ss)', [wmClass, title])
+            );
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    // ─── Enable / Disable ─────────────────────────────────────────────
+
     enable() {
-        console.log('[WinKey] Enabling extension v10 (simplified, system terminal only)');
+        console.log('[WinKey] Enabling extension v11 (with D-Bus helper)');
         this._extSettings = this.getSettings();
         this._inputSettings = new Gio.Settings({
             schema_id: 'org.gnome.desktop.input-sources',
@@ -299,9 +392,29 @@ export default class WinKeyExtension extends Extension {
 
         // Terminal focus tracking
         this._focusWindowId = global.display.connect(
-            'notify::focus-window', 
+            'notify::focus-window',
             this._onFocusWindowChanged.bind(this)
         );
+
+        // ── D-Bus helper service ─────────────────────────────────
+        try {
+            this._dbusImpl = Gio.DBusExportedObject.wrapJSObject(
+                DBUS_IFACE, this
+            );
+            this._dbusImpl.export(
+                Gio.DBus.session,
+                '/com/github/winkey/WindowHelper'
+            );
+            this._dbusNameId = Gio.bus_own_name(
+                Gio.BusType.SESSION,
+                'com.github.winkey.WindowHelper',
+                Gio.BusNameOwnerFlags.NONE,
+                null, null, null
+            );
+            console.log('[WinKey] D-Bus helper service registered');
+        } catch (e) {
+            console.error('[WinKey] Failed to register D-Bus helper:', e);
+        }
 
         console.log('[WinKey] Extension enabled');
     }
@@ -326,6 +439,16 @@ export default class WinKeyExtension extends Extension {
             global.display.disconnect(this._focusWindowId);
             this._focusWindowId = 0;
         }
+        // Cleanup title change tracking
+        if (this._titleChangedId > 0 && this._titleChangedWindow) {
+            try {
+                this._titleChangedWindow.disconnect(this._titleChangedId);
+            } catch (e) {
+                // window may have been destroyed
+            }
+            this._titleChangedId = 0;
+            this._titleChangedWindow = null;
+        }
 
         try {
             const ism = getInputSourceManager();
@@ -335,6 +458,20 @@ export default class WinKeyExtension extends Extension {
             }
         } catch (e) {
             // ignore
+        }
+
+        // ── Cleanup D-Bus helper ─────────────────────────────────
+        if (this._dbusImpl) {
+            try {
+                this._dbusImpl.unexport();
+            } catch (e) {
+                // ignore
+            }
+            this._dbusImpl = null;
+        }
+        if (this._dbusNameId > 0) {
+            Gio.bus_unown_name(this._dbusNameId);
+            this._dbusNameId = 0;
         }
 
         this._extSettings = null;

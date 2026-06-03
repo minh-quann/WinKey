@@ -1,0 +1,8 @@
+{
+  "uuid": "winkey-helper@minh-quann.github.io",
+  "name": "WinKey Window Helper",
+  "description": "Exposes focused window info via D-Bus for WinKey GUI app. Required for terminal auto-detection on Wayland.",
+  "shell-version": [ "45", "46", "47", "48", "49", "50" ],
+  "url": "https://github.com/minh-quann/WinKey",
+  "version": 1
+}

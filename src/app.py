@@ -89,6 +89,10 @@ class WinKeyApp(Adw.Application):
                 self._bg_daemon.stop()
                 self._bg_daemon = None
                 self._bg_callbacks = None
+            # Stop background terminal detector (window has its own)
+            if hasattr(self, '_bg_terminal_detector') and self._bg_terminal_detector:
+                self._bg_terminal_detector.stop()
+                self._bg_terminal_detector = None
 
         self.window.present()
 
@@ -97,17 +101,27 @@ class WinKeyApp(Adw.Application):
         from src.settings import load_config
         from src.daemon import KeyDaemon
         from src.input_source import get_current_index, set_current_index
+        from src.terminal_detector import TerminalDetector
 
         config = load_config()
         if not config["enabled"]:
             return
 
+        # Start terminal detector if enabled
+        if config.get("auto_switch_terminal", True):
+            self._bg_terminal_detector = TerminalDetector(config["english_index"])
+            self._bg_terminal_detector.start()
+        else:
+            self._bg_terminal_detector = None
+
         class BackgroundCallbacks:
             """Daemon callbacks for background mode."""
-            def __init__(self, app: 'WinKeyApp', cfg: dict) -> None:
+            def __init__(self, app: 'WinKeyApp', cfg: dict,
+                         detector: TerminalDetector | None) -> None:
                 self.app = app
                 self.config = cfg
                 self._saved_source: int | None = None
+                self._detector = detector
 
             def on_super_pressed(self) -> None:
                 GLib.idle_add(self._handle_pressed)
@@ -122,6 +136,10 @@ class WinKeyApp(Adw.Application):
                 pass
 
             def _handle_pressed(self) -> None:
+                # Skip if terminal detector already switched to English
+                if self._detector and self._detector.in_terminal:
+                    return
+
                 current = get_current_index()
                 target = self.config["english_index"]
                 if current != target:
@@ -131,13 +149,19 @@ class WinKeyApp(Adw.Application):
                     self._saved_source = None
 
             def _handle_released(self) -> None:
+                # Skip if terminal detector is managing the input source
+                if self._detector and self._detector.in_terminal:
+                    return
+
                 if self._saved_source is not None:
                     set_current_index(self._saved_source)
                     self._saved_source = None
 
-        self._bg_callbacks = BackgroundCallbacks(self, config)
+        self._bg_callbacks = BackgroundCallbacks(
+            self, config, self._bg_terminal_detector)
         self._bg_daemon = KeyDaemon(self._bg_callbacks)
         self._bg_daemon.start()
+
 
     # ── Tray Icon Management ─────────────────────────────────────────
 
@@ -224,13 +248,20 @@ class WinKeyApp(Adw.Application):
 
     def _do_full_quit(self) -> None:
         """Fully quit the application and tray."""
+        # Stop background terminal detector
+        if hasattr(self, '_bg_terminal_detector') and self._bg_terminal_detector:
+            self._bg_terminal_detector.stop()
+            self._bg_terminal_detector = None
+
         # Stop background daemon
         if self._bg_daemon:
             self._bg_daemon.stop()
 
-        # Stop window daemon
+        # Stop window daemon and its terminal detector
         if self.window:
             from src.input_source import set_current_index
+            if hasattr(self.window, 'terminal_detector'):
+                self.window.terminal_detector.stop()
             if hasattr(self.window, '_saved_source') and self.window._saved_source is not None:
                 set_current_index(self.window._saved_source)
             self.window.daemon.stop()

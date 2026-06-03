@@ -88,4 +88,20 @@ def build_settings_card(window) -> Adw.PreferencesGroup:
     tray_row.set_activatable_widget(window.tray_switch)
     group.add(tray_row)
 
+    # Auto-switch in terminal row
+    terminal_row = Adw.ActionRow(
+        title=t.get("auto_switch_terminal", "Auto-switch in terminals"),
+        subtitle=t.get("auto_switch_terminal_desc",
+                       "Automatically switch to English when a terminal is focused"),
+    )
+    terminal_icon = Gtk.Image.new_from_icon_name("utilities-terminal-symbolic")
+    terminal_row.add_prefix(terminal_icon)
+
+    window.terminal_switch = Gtk.Switch(valign=Gtk.Align.CENTER)
+    window.terminal_switch.set_active(window.config.get("auto_switch_terminal", True))
+    window.terminal_switch.connect("notify::active", window._on_terminal_toggled)
+    terminal_row.add_suffix(window.terminal_switch)
+    terminal_row.set_activatable_widget(window.terminal_switch)
+    group.add(terminal_row)
+
     return group

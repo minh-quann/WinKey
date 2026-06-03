@@ -13,20 +13,36 @@ if [[ -n "$ANTIGRAVITY_AGENT" ]] || [[ "$TERM_PROGRAM" == "vscode" ]] || [[ -n "
 
     __winkey_enter_terminal() {
         # Notify extension that terminal is focused (non-blocking, background)
-        dbus-send --session --type=method_call \
-            --dest=org.gnome.Shell \
-            /org/gnome/shell/extensions/WinKey \
-            org.gnome.shell.extensions.WinKey.SetTerminalMode \
-            boolean:true 2>/dev/null &
+        if [[ -n "$ZSH_VERSION" ]]; then
+            dbus-send --session --type=method_call \
+                --dest=org.gnome.Shell \
+                /org/gnome/shell/extensions/WinKey \
+                org.gnome.shell.extensions.WinKey.SetTerminalMode \
+                boolean:true 2>/dev/null &!
+        else
+            dbus-send --session --type=method_call \
+                --dest=org.gnome.Shell \
+                /org/gnome/shell/extensions/WinKey \
+                org.gnome.shell.extensions.WinKey.SetTerminalMode \
+                boolean:true 2>/dev/null & disown &>/dev/null
+        fi
     }
 
     __winkey_leave_terminal() {
         # Notify extension that terminal lost focus
-        dbus-send --session --type=method_call \
-            --dest=org.gnome.Shell \
-            /org/gnome/shell/extensions/WinKey \
-            org.gnome.shell.extensions.WinKey.SetTerminalMode \
-            boolean:false 2>/dev/null &
+        if [[ -n "$ZSH_VERSION" ]]; then
+            dbus-send --session --type=method_call \
+                --dest=org.gnome.Shell \
+                /org/gnome/shell/extensions/WinKey \
+                org.gnome.shell.extensions.WinKey.SetTerminalMode \
+                boolean:false 2>/dev/null &!
+        else
+            dbus-send --session --type=method_call \
+                --dest=org.gnome.Shell \
+                /org/gnome/shell/extensions/WinKey \
+                org.gnome.shell.extensions.WinKey.SetTerminalMode \
+                boolean:false 2>/dev/null & disown &>/dev/null
+        fi
     }
 
     # Switch to English on every new prompt (terminal is active)
