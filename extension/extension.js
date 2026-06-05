@@ -110,7 +110,7 @@ export default class WinKeyExtension extends Extension {
                 }
             }
         } catch (e) {
-            console.error('[WinKey] Failed to build engine map:', e);
+            this._log(`Failed to build engine map: ${e}`);
         }
     }
 
@@ -128,14 +128,14 @@ export default class WinKeyExtension extends Extension {
                 ism._inputSources[index].activate(true);
             }
         } catch (e) {
-            console.error('[WinKey] ISM activate failed:', e);
+            this._log(`ISM activate failed: ${e}`);
         }
 
         // Method 2: Set GSettings current
         try {
             this._inputSettings.set_uint('current', index);
         } catch (e) {
-            console.error('[WinKey] GSettings set failed:', e);
+            this._log(`GSettings set failed: ${e}`);
         }
 
         // Method 3: ibus engine CLI (async, non-blocking)
@@ -146,7 +146,7 @@ export default class WinKeyExtension extends Extension {
                     Gio.SubprocessFlags.NONE
                 );
             } catch (e) {
-                console.error('[WinKey] ibus engine spawn failed:', e);
+                this._log(`ibus engine spawn failed: ${e}`);
             }
         }
     }
@@ -397,7 +397,7 @@ export default class WinKeyExtension extends Extension {
                 );
             }
         } catch (e) {
-            console.error('[WinKey] Failed to connect ISM signal:', e);
+            this._log(`Failed to connect ISM signal: ${e}`);
         }
 
         // Overview signals
@@ -431,7 +431,7 @@ export default class WinKeyExtension extends Extension {
             );
             this._log('D-Bus helper service registered');
         } catch (e) {
-            console.error('[WinKey] Failed to register D-Bus helper:', e);
+            this._log(`Failed to register D-Bus helper: ${e}`);
         }
 
         this._log('Extension enabled');
