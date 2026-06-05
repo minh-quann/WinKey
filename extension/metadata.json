@@ -2,8 +2,8 @@
   "uuid": "winkey@minh-quann.github.io",
   "name": "WinKey Input Switcher",
   "description": "Hold Super key to temporarily switch to English input.",
-  "shell-version": [ "45", "46", "47", "48", "49" ],
+  "shell-version": [ "45", "46", "47", "48", "49", "50" ],
   "settings-schema": "org.gnome.shell.extensions.winkey",
   "url": "https://github.com/minh-quann/WinKey",
-  "version": 10
+  "version": 11
 }
