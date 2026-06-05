@@ -62,6 +62,20 @@ export default class WinKeyExtension extends Extension {
         this._titleChangedId = 0;
         this._titleChangedWindow = null;
         this._sourceBeforeTerminal = -1;
+
+        // Track pending timeout IDs for cleanup in disable()
+        this._pendingTimeoutIds = [];
+
+        // Debug flag — set to true for verbose logging
+        this._debug = false;
+    }
+
+    /**
+     * Gated log — only prints when _debug is true.
+     */
+    _log(msg) {
+        if (this._debug)
+            console.log(`[WinKey] ${msg}`);
     }
 
     /**
@@ -92,7 +106,7 @@ export default class WinKeyExtension extends Extension {
 
                 if (engine) {
                     this._engineMap[i] = engine;
-                    console.log(`[WinKey] Source ${i}: ${srcType}/${srcId} → "${engine}"`);
+                    this._log(`Source ${i}: ${srcType}/${srcId} → "${engine}"`);
                 }
             }
         } catch (e) {
@@ -105,7 +119,7 @@ export default class WinKeyExtension extends Extension {
      */
     _switchTo(index) {
         const engine = this._engineMap[index];
-        console.log(`[WinKey] Switching to index ${index}, engine="${engine}"`);
+        this._log(`Switching to index ${index}, engine="${engine}"`);
 
         // Method 1: InputSourceManager.activate()
         try {
@@ -161,7 +175,7 @@ export default class WinKeyExtension extends Extension {
         this._sourceBeforeOverview = this._lastSourceIndex;
         const targetIndex = this._extSettings.get_int('english-index');
 
-        console.log(`[WinKey] Overview SHOWING: saved=${this._sourceBeforeOverview}, target=${targetIndex}`);
+        this._log(`Overview SHOWING: saved=${this._sourceBeforeOverview}, target=${targetIndex}`);
 
         // Switch to English immediately
         if (this._sourceBeforeOverview !== targetIndex &&
@@ -176,7 +190,7 @@ export default class WinKeyExtension extends Extension {
         const targetIndex = this._extSettings.get_int('english-index');
         const restoreIndex = this._sourceBeforeOverview;
 
-        console.log(`[WinKey] Overview HIDDEN: restoreIndex=${restoreIndex}`);
+        this._log(`Overview HIDDEN: restoreIndex=${restoreIndex}`);
 
         if (restoreIndex === -1 || restoreIndex === targetIndex) {
             this._sourceBeforeOverview = -1;
@@ -196,11 +210,13 @@ export default class WinKeyExtension extends Extension {
             if (delay === 0) {
                 this._switchTo(restoreIndex);
             } else {
-                GLib.timeout_add(GLib.PRIORITY_HIGH, delay, () => {
+                const id = GLib.timeout_add(GLib.PRIORITY_HIGH, delay, () => {
+                    this._pendingTimeoutIds = this._pendingTimeoutIds.filter(t => t !== id);
                     this._switchTo(restoreIndex);
                     this._lastSourceIndex = restoreIndex;
                     return GLib.SOURCE_REMOVE;
                 });
+                this._pendingTimeoutIds.push(id);
             }
         }
 
@@ -215,7 +231,7 @@ export default class WinKeyExtension extends Extension {
      */
     _enterTerminalMode(source) {
         if (this._inTerminal) return;
-        console.log(`[WinKey] Terminal detected (${source}), switching to English`);
+        this._log(`Terminal detected (${source}), switching to English`);
         this._sourceBeforeTerminal = this._lastSourceIndex;
         this._inTerminal = true;
 
@@ -230,7 +246,7 @@ export default class WinKeyExtension extends Extension {
      */
     _leaveTerminalMode(reason) {
         if (!this._inTerminal) return;
-        console.log(`[WinKey] Terminal left (${reason}), restoring previous source`);
+        this._log(`Terminal left (${reason}), restoring previous source`);
         this._inTerminal = false;
 
         const restoreIndex = this._sourceBeforeTerminal;
@@ -242,11 +258,13 @@ export default class WinKeyExtension extends Extension {
                 if (delay === 0) {
                     this._switchTo(restoreIndex);
                 } else {
-                    GLib.timeout_add(GLib.PRIORITY_HIGH, delay, () => {
+                    const id = GLib.timeout_add(GLib.PRIORITY_HIGH, delay, () => {
+                        this._pendingTimeoutIds = this._pendingTimeoutIds.filter(t => t !== id);
                         this._switchTo(restoreIndex);
                         this._lastSourceIndex = restoreIndex;
                         return GLib.SOURCE_REMOVE;
                     });
+                    this._pendingTimeoutIds.push(id);
                 }
             }
         }
@@ -350,7 +368,7 @@ export default class WinKeyExtension extends Extension {
     // ─── Enable / Disable ─────────────────────────────────────────────
 
     enable() {
-        console.log('[WinKey] Enabling extension v11 (with D-Bus helper)');
+        this._log('Enabling extension v11 (with D-Bus helper)');
         this._extSettings = this.getSettings();
         this._inputSettings = new Gio.Settings({
             schema_id: 'org.gnome.desktop.input-sources',
@@ -367,7 +385,7 @@ export default class WinKeyExtension extends Extension {
         } catch (e) {
             this._lastSourceIndex = this._inputSettings.get_uint('current');
         }
-        console.log(`[WinKey] Initial source: ${this._lastSourceIndex}`);
+        this._log(`Initial source: ${this._lastSourceIndex}`);
 
         // Track source changes
         try {
@@ -411,16 +429,22 @@ export default class WinKeyExtension extends Extension {
                 Gio.BusNameOwnerFlags.NONE,
                 null, null, null
             );
-            console.log('[WinKey] D-Bus helper service registered');
+            this._log('D-Bus helper service registered');
         } catch (e) {
             console.error('[WinKey] Failed to register D-Bus helper:', e);
         }
 
-        console.log('[WinKey] Extension enabled');
+        this._log('Extension enabled');
     }
 
     disable() {
-        console.log('[WinKey] Disabling extension');
+        this._log('Disabling extension');
+
+        // Remove all pending timeout sources
+        for (const id of this._pendingTimeoutIds) {
+            GLib.source_remove(id);
+        }
+        this._pendingTimeoutIds = [];
 
         if (this._restoreTimeoutId > 0) {
             GLib.source_remove(this._restoreTimeoutId);
